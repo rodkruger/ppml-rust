@@ -20,7 +20,7 @@ fn main() {
     set_server_key(server_key);
 
     // 2️⃣ Encrypt an input value (Fixed-point scaling)
-    let scaling_factor = 1000000;  // **Reduced scaling for better precision**
+    let scaling_factor = 10000;  // **Reduced scaling for better precision**
     let plaintext: u32 = (0.8 * scaling_factor as f64) as u32;
     let encrypted_x = FheUint32::encrypt(plaintext, &client_key);
 
