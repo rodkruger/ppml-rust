@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 tfhe = { version = "~1.0.1", features = ["boolean", "shortint", "integer", "gpu"] }
+clap = { version = "4", features = ["derive"] }

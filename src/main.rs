@@ -35,10 +35,12 @@ fn main() {
     // 2800 segundos
 }
 */
+use clap::{Arg, Command};
 use std::ops::Add;
 use std::time::Instant;
 use tfhe::prelude::*;
-use tfhe::{ConfigBuilder, FheInt32, generate_keys, set_server_key};
+use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
+use tfhe::{CompressedServerKey, ConfigBuilder, FheInt32, generate_keys, set_server_key};
 
 const SCALING_FACTOR: i32 = 100; // 2 decimal places
 const LUT_INPUTS: [i32; 201] = [
@@ -84,14 +86,41 @@ fn homomorphic_lut_tanh(
 }
 
 fn main() {
-    // 1. Configure and generate keys
-    let config = ConfigBuilder::default().build();
-    let (client_key, server_key) = generate_keys(config);
-    set_server_key(server_key);
+    // Parse command line args
+    let matches = Command::new("tfhe_app")
+        .about("TFHE CPU/GPU toggle example")
+        .arg(
+            Arg::new("gpu")
+                .long("gpu")
+                .help("Use GPU acceleration")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .get_matches();
+
+    let use_gpu = matches.get_flag("gpu");
+    let client_key;
+
+    if use_gpu {
+        println!("Running with GPU acceleration ...");
+        let config = ConfigBuilder::with_custom_parameters(
+            PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+        )
+            .build();
+        let (_client_key, _) = generate_keys(config);
+        client_key = _client_key;
+        let compressed_server_key = CompressedServerKey::new(&client_key);
+        let gpu_key = compressed_server_key.decompress_to_gpu();
+        set_server_key(gpu_key);
+    } else {
+        println!("Running in CPU mode ...");
+        let config = ConfigBuilder::default().build();
+        let (_client_key, server_key) = generate_keys(config);
+        client_key = _client_key;
+        set_server_key(server_key);
+    }
 
     let start = Instant::now();
 
-    // 2. Encrypt LUT entries from precomputed constants
     let lut_inputs_encrypted: Vec<FheInt32> = LUT_INPUTS
         .iter()
         .map(|&x| FheInt32::encrypt_trivial(x))
